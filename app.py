@@ -27,7 +27,7 @@ L = LANG[lang_choice]
 
 # --- Google Sheet Connection (Public Link Method) ---
 # သင့်ရဲ့ Google Sheet URL ကို အောက်ကနေရာမှာ အစားထိုးပါ
-SHEET_URL = "သင့်ရဲ့_Google_Sheet_URL_ကို_ဒီမှာထည့်ပါ"
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1vCh5LDees31-5k8hxqCimTjGRedVZKRwVfXT93e8DeI/edit?gid=0#gid=0"
 # CSV အဖြစ်ပြောင်းလဲခြင်း
 SHEET_CSV_URL = SHEET_URL.replace('/edit?usp=sharing', '/export?format=csv')
 
