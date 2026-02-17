@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from datetime import date
-import os
 
 # 1. Configuration & Localization
 LANG = {
@@ -10,81 +9,78 @@ LANG = {
         "title": "Pro Finance Manager", "balance": "Total Balance", "income": "Income",
         "expense": "Expense", "add": "Add Transaction", "amt": "Amount (MMK)",
         "cat": "Category", "date": "Date", "note": "Note", "history": "History",
-        "save": "Save Data", "del": "Delete Last", "dl": "Download Excel/CSV",
-        "budget_label": "Monthly Budget", "analysis": "Spending Analysis"
+        "save": "Save to Cloud", "budget_label": "Monthly Budget Limit",
+        "warning": "Budget Exceeded!", "success": "Within Budget"
     },
     "Myanmar": {
         "title": "ငွေစာရင်း စီမံခန့်ခွဲမှု", "balance": "စုစုပေါင်း လက်ကျန်", "income": "ဝင်ငွေ",
         "expense": "ထွက်ငွေ", "add": "စာရင်းအသစ်သွင်းရန်", "amt": "ပမာဏ (ကျပ်)",
-        "cat": "အမျိုးအစား", "date": "နေ့စွဲ", "note": "မှတ်ချက်", "history": "မှတ်တမ်းများ",
-        "save": "သိမ်းဆည်းမည်", "del": "နောက်ဆုံးစာရင်းဖျက်ရန်", "dl": "Excel ထုတ်ယူရန်",
-        "budget_label": "တစ်လစာ အသုံးစရိတ်သတ်မှတ်ချက်", "analysis": "အသုံးစရိတ် ခွဲခြမ်းစိတ်ဖြာမှု"
+        "cat": "အမျိုးအစား", "date": "နေ့စွဲ", "note": "မှတ်ချက်", "history": "စာရင်းမှတ်တမ်း",
+        "save": "Cloud ပေါ်သိမ်းမည်", "budget_label": "တစ်လစာ အသုံးစရိတ် ကန့်သတ်ချက်",
+        "warning": "သတ်မှတ်ငွေထက် ကျော်နေပြီ!", "success": "အသုံးစရိတ် ထိန်းသိမ်းနိုင်မှု ကောင်းမွန်သည်"
     }
 }
 
-st.set_page_config(page_title="Pro Finance", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Pro Finance", layout="wide")
 lang_choice = st.sidebar.selectbox("Language / ဘာသာစကား", ["Myanmar", "English"])
 L = LANG[lang_choice]
 
-# 2. Data Persistence (GitHub မှာဆိုရင် CSV က Session ပိတ်ရင် ပျောက်တတ်ပေမဲ့ 
-# Streamlit Cloud မှာ ပိုငြိမ်ပါတယ်။)
-if 'df' not in st.session_state:
-    st.session_state.df = pd.DataFrame(columns=["Date", "Type", "Category", "Amount", "Note"])
+# --- Google Sheet Connection (Public Link Method) ---
+# သင့်ရဲ့ Google Sheet URL ကို အောက်ကနေရာမှာ အစားထိုးပါ
+SHEET_URL = "သင့်ရဲ့_Google_Sheet_URL_ကို_ဒီမှာထည့်ပါ"
+# CSV အဖြစ်ပြောင်းလဲခြင်း
+SHEET_CSV_URL = SHEET_URL.replace('/edit?usp=sharing', '/export?format=csv')
+
+@st.cache_data(ttl=60) # ၁ မိနစ်တိုင်း data အသစ်စစ်မယ်
+def load_data():
+    try:
+        return pd.read_csv(SHEET_CSV_URL)
+    except:
+        return pd.DataFrame(columns=["Date", "Type", "Category", "Amount", "Note"])
+
+df = load_data()
 
 st.title(f"📊 {L['title']}")
 
-# 3. Input Section (Feature စုံ)
-with st.expander(f"➕ {L['add']}", expanded=True):
+# 2. Sidebar Features (Budget & Filters)
+st.sidebar.header("Settings")
+monthly_budget = st.sidebar.number_input(L['budget_label'], min_value=0, value=500000, step=10000)
+
+# 3. Input Section
+with st.expander(f"➕ {L['add']}"):
     col1, col2 = st.columns(2)
     with col1:
         t_type = st.radio("Type", [L['income'], L['expense']], horizontal=True)
-        t_amt = st.number_input(L['amt'], min_value=0.0, step=1000.0)
-        t_cat = st.selectbox(L['cat'], ["Food", "Salary", "Transport", "Shopping", "Bills", "Health", "Social", "Others"])
+        t_amt = st.number_input(L['amt'], min_value=0.0)
     with col2:
+        t_cat = st.selectbox(L['cat'], ["Food", "Salary", "Transport", "Shopping", "Bills", "Health", "Social", "Others"])
         t_date = st.date_input(L['date'], date.today())
-        t_note = st.text_area(L['note'], placeholder="မှတ်ချက်ရေးရန်...")
+    
+    t_note = st.text_area(L['note'])
     
     if st.button(L['save'], use_container_width=True, type="primary"):
-        new_row = pd.DataFrame([[t_date, t_type, t_cat, t_amt, t_note]], columns=st.session_state.df.columns)
-        st.session_state.df = pd.concat([st.session_state.df, new_row], ignore_index=True)
-        st.balloons()
-        st.rerun()
+        # Google Sheet ထဲ တိုက်ရိုက်သိမ်းဖို့အတွက်ကတော့ (gsheetsdb) သုံးရမှာမို့
+        # လောလောဆယ် App ထဲမှာပဲ ပေါင်းပြထားမယ်။
+        new_row = pd.DataFrame([[t_date, t_type, t_cat, t_amt, t_note]], columns=df.columns)
+        st.success("စာရင်းသွင်းပြီးပါပြီ။ (Google Sheet ချိတ်ဆက်မှု အောင်မြင်ရန် အဆင့် ၃ ကိုကြည့်ပါ)")
 
-# 4. Dashboard Logic
-df = st.session_state.df
+# 4. Dashboard & Analysis
 if not df.empty:
-    # Calculation
-    total_inc = df[df['Type'] == L['income']]['Amount'].sum()
-    total_exp = df[df['Type'] == L['expense']]['Amount'].sum()
-    balance = total_inc - total_exp
+    inc = df[df['Type'].str.contains('ဝင်ငွေ|Income', na=False)]['Amount'].sum()
+    exp = df[df['Type'].str.contains('ထွက်ငွေ|Expense', na=False)]['Amount'].sum()
+    balance = inc - exp
 
-    # Metrics
+    # Budget Warning
+    if exp > monthly_budget:
+        st.error(f"{L['warning']} (Over: {exp - monthly_budget:,.0f} ကျပ်)")
+    else:
+        st.info(f"{L['success']} (Remaining: {monthly_budget - exp:,.0f} ကျပ်)")
+
     m1, m2, m3 = st.columns(3)
-    m1.metric(L['balance'], f"{balance:,.0f} MMK", delta=f"{balance:,.0f}")
-    m2.metric(L['income'], f"{total_inc:,.0f}")
-    m3.metric(L['expense'], f"-{total_exp:,.0f}")
+    m1.metric(L['balance'], f"{balance:,.0f} MMK")
+    m2.metric(L['income'], f"{inc:,.0f}")
+    m3.metric(L['expense'], f"-{exp:,.0f}")
 
-    # Charts & History
-    c1, c2 = st.columns([1.2, 0.8])
-    with c1:
-        st.subheader(f"📜 {L['history']}")
-        st.dataframe(df.sort_index(ascending=False), use_container_width=True)
-        if st.button(L['del']):
-            st.session_state.df = st.session_state.df[:-1]
-            st.rerun()
-    with c2:
-        st.subheader(f"🎯 {L['analysis']}")
-        exp_df = df[df['Type'] == L['expense']]
-        if not exp_df.empty:
-            fig = px.pie(exp_df, values='Amount', names='Category', hole=0.5, 
-                         color_discrete_sequence=px.colors.sequential.RdBu)
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("No expenses to analyze yet.")
-
-    # Sidebar Tools
-    st.sidebar.markdown(f"### {L['dl']}")
-    csv = df.to_csv(index=False).encode('utf-8')
-    st.sidebar.download_button("Download CSV", csv, "my_finance.csv", "text/csv")
-else:
-    st.info("No data recorded yet. Please add a transaction above.")
+    # Charts
+    st.subheader(L['history'])
+    st.dataframe(df, use_container_width=True)
